@@ -4,7 +4,7 @@ import XCTest
 ///
 /// À utiliser uniquement dans un target de tests UI (XCUITest), conventionnellement `SnapshotTests`.
 /// Ce package ne compare aucune image : il produit des captures nommées que le runner extrait du
-/// `.xcresult` (seuls les attachments dont le nom commence par `screen:` sont retenus).
+/// `.xcresult` : chaque capture est une activité intitulée `screen:<nom>` portant un attachment du même nom.
 public enum PlatformSnapshot {
     /// Capture l'écran courant et l'attache au résultat de test sous le nom `screen:<name>`.
     /// Le runner de la plateforme extrait ces attachments du .xcresult.
@@ -25,10 +25,11 @@ public enum PlatformSnapshot {
         if settle > 0 {
             _ = XCTWaiter.wait(for: [XCTestExpectation(description: "PlatformSnapshot.settle")], timeout: settle)
         }
-        let attachment = XCTAttachment(screenshot: app.screenshot())
-        attachment.name = attachmentName
-        attachment.lifetime = .keepAlways
+        // Le titre de l'activité est l'identifiant lu par le runner (C03 §6.3) ; l'attachment porte le même nom.
         XCTContext.runActivity(named: attachmentName) { activity in
+            let attachment = XCTAttachment(screenshot: app.screenshot())
+            attachment.name = attachmentName
+            attachment.lifetime = .keepAlways
             activity.add(attachment)
         }
     }

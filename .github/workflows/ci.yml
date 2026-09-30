@@ -47,14 +47,23 @@ jobs:
               -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
               -resultBundlePath "Result-$appearance.xcresult"
           done
-      - name: Check screen:<name> attachments
+      - name: Check screen:<name> activities carry an attachment
         working-directory: Fixture
         run: |
           set -euo pipefail
           for appearance in light dark; do
-            count=$(xcrun xcresulttool get test-results activities --path "Result-$appearance.xcresult" \
-              --test-id 'SnapshotTests/testHomeSnapshot()' | grep -c '"screen:Home"' || true)
-            test "$count" -ge 1
+            for screen in Home Settings; do
+              xcrun xcresulttool get test-results activities --path "Result-$appearance.xcresult" \
+                --test-id "SnapshotTests/test${screen}Snapshot()" | python3 -c "
+          import json, sys
+          def walk(n):
+              yield n
+              for c in n.get('childActivities', []): yield from walk(c)
+          d = json.load(sys.stdin)
+          hits = [a for r in d['testRuns'] for top in r['activities'] for a in walk(top)
+                  if a.get('title') == 'screen:$screen' and a.get('attachments')]
+          sys.exit(0 if len(hits) == 1 else 1)"
+            done
           done
       - uses: actions/upload-artifact@v4
         if: always()

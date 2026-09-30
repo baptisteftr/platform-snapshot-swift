@@ -19,7 +19,8 @@ Plateformes : iOS / iPadOS 17.4, macOS 14.4, visionOS 1.1. Swift 6.
 
 ```swift
 public enum PlatformSnapshot {
-    /// Attend `settle` s, capture `app.screenshot()` et l'attache sous le nom `screen:<name>` (keepAlways).
+    /// Attend `settle` s puis, dans une activité intitulée `screen:<name>`, attache `app.screenshot()`
+    /// sous le même nom (keepAlways).
     @MainActor public static func capture(_ app: XCUIApplication, _ name: String,
                                           settle: TimeInterval = 0.5, file: StaticString = #filePath, line: UInt = #line)
 
@@ -81,15 +82,18 @@ TEST_RUNNER_PLATFORM_APPEARANCE=dark xcodebuild test …  # ✓ l'app reçoit PL
 
 ## Extraire les captures d'un `.xcresult`
 
-Le nom `screen:<Écran>` est conservé tel quel dans le modèle d'objets « legacy » ; le manifeste de
-`xcresulttool export attachments` ne donne qu'un nom de fichier assaini (`screenHome_0_<uuid>.png`, sans `:`) :
+Chaque capture est une activité XCTest **intitulée `screen:<Écran>`** qui porte un attachment du même nom
+(contrat 03 §6.3). Le runner lit les titres d'activités, puis exporte les fichiers :
 
 ```sh
-# nom exact (champ name des ActionTestAttachment) puis export par id
-xcrun xcresulttool get object --legacy --path Result.xcresult --format json          # puis --id <ref>
-# ou export groupé : exportedFileName + suggestedHumanReadableName ("screen<Écran>_…")
+xcrun xcresulttool get test-results activities --path Result.xcresult --test-id 'SnapshotTests/testHomeSnapshot()'
 xcrun xcresulttool export attachments --path Result.xcresult --output-path out/
 ```
+
+Les noms de fichiers exportés sont assainis par xcresulttool (`screenHome_0_<uuid>.png`, sans `:` ni `/`) et
+ne servent jamais d'identifiant : `<Écran>` vient du titre de l'activité. XCTest ajoute sous l'activité une
+sous-activité du même titre **sans** attachment (trace de l'ajout) : ne retenir que l'activité
+`screen:<Écran>` qui porte l'attachment.
 
 ## Fixture
 
