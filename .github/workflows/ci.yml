@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["*"]
+  pull_request:
+
+jobs:
+  package:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint
+        run: swift format lint --strict --recursive Package.swift Sources Tests Fixture
+      - name: Build (macOS, warnings as errors)
+        run: swift build -Xswiftc -warnings-as-errors
+      - name: Unit tests (macOS)
+        run: swift test
+      - name: Build iOS
+        run: xcodebuild -scheme PlatformSnapshot -destination 'generic/platform=iOS' build
+      - name: Build visionOS
+        run: xcodebuild -scheme PlatformSnapshot -destination 'generic/platform=visionOS' build
+
+  fixture:
+    runs-on: macos-15
+    needs: package
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate fixture project
+        working-directory: Fixture
+        run: xcodegen generate
+      - name: Pick an iPhone simulator
+        id: sim
+        run: |
+          id=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for r,l in sorted(d.items(), reverse=True) if 'iOS' in r for x in l if x['name'].startswith('iPhone')))")
+          echo "udid=$id" >> "$GITHUB_OUTPUT"
+      - name: Snapshot tests (light, dark)
+        working-directory: Fixture
+        run: |
+          set -euo pipefail
+          for appearance in light dark; do
+            TEST_RUNNER_PLATFORM_APPEARANCE=$appearance xcodebuild test \
+              -project SnapshotFixture.xcodeproj -scheme FixtureApp \
+              -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+              -resultBundlePath "Result-$appearance.xcresult"
+          done
+      - name: Check screen:<name> attachments
+        working-directory: Fixture
+        run: |
+          set -euo pipefail
+          for appearance in light dark; do
+            count=$(xcrun xcresulttool get test-results activities --path "Result-$appearance.xcresult" \
+              --test-id 'SnapshotTests/testHomeSnapshot()' | grep -c '"screen:Home"' || true)
+            test "$count" -ge 1
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fixture-xcresults
+          path: Fixture/*.xcresult
