@@ -42,4 +42,28 @@ final class PlatformSnapshotTests: XCTestCase {
             existing: ["PLATFORM_APPEARANCE": "light"], testProcess: ["PLATFORM_APPEARANCE": "dark"])
         XCTAssertEqual(environment["PLATFORM_APPEARANCE"], "dark")
     }
+
+    func testMacOSCaptureSucceedsOnlyWithForegroundAppAndWindow() {
+        XCTAssertNil(PlatformSnapshot.macOSCaptureFailure(name: "Home", isForeground: true, hasWindow: true))
+    }
+
+    func testMacOSCaptureFailsWhenAppIsNotForeground() {
+        for hasWindow in [true, false] {
+            let failure = PlatformSnapshot.macOSCaptureFailure(name: "Home", isForeground: false, hasWindow: hasWindow)
+            XCTAssertNotNil(failure)
+            XCTAssertTrue(failure?.contains("premier plan") == true)
+            XCTAssertTrue(failure?.contains("\"Home\"") == true)
+        }
+    }
+
+    func testMacOSCaptureFailsWithoutWindow() {
+        let failure = PlatformSnapshot.macOSCaptureFailure(name: "Settings", isForeground: true, hasWindow: false)
+        XCTAssertNotNil(failure)
+        XCTAssertTrue(failure?.contains("aucune fenêtre") == true)
+        XCTAssertTrue(failure?.contains("jamais l'écran entier") == true)
+    }
+
+    func testMacOSForegroundWaitIsBoundedToFiveSeconds() {
+        XCTAssertLessThanOrEqual(PlatformSnapshot.foregroundTimeout, 5)
+    }
 }
