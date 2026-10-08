@@ -4,4 +4,4 @@ Une fiche par bloc fonctionnel. Lire la fiche d'un bloc avant de le modifier ; l
 
 | Fiche | Rôle | Dernière mise à jour |
 |---|---|---|
-| [snapshot.md](snapshot.md) | `PlatformSnapshot.launch` / `capture`, conventions `screen:<Écran>` et `PLATFORM_APPEARANCE`, fixture | 2026-09-30 (#2) |
+| [snapshot.md](snapshot.md) | `PlatformSnapshot.launch` / `capture` (fenêtre seule sur macOS), conventions `screen:<Écran>` et `PLATFORM_APPEARANCE`, fixture | 2026-10-08 (#3) |

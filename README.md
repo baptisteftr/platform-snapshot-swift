@@ -12,15 +12,15 @@ Plateformes : iOS / iPadOS 17.4, macOS 14.4, visionOS 1.1. Swift 6.
 
 ```swift
 // Package.swift, ou Xcode › Package Dependencies
-.package(url: "https://github.com/baptisteftr/platform-snapshot-swift", from: "1.0.0")
+.package(url: "https://github.com/baptisteftr/platform-snapshot-swift", from: "1.0.1")
 ```
 
 ## API
 
 ```swift
 public enum PlatformSnapshot {
-    /// Attend `settle` s puis, dans une activité intitulée `screen:<name>`, attache `app.screenshot()`
-    /// sous le même nom (keepAlways).
+    /// Attend `settle` s puis, dans une activité intitulée `screen:<name>`, attache la capture sous le
+    /// même nom (keepAlways) : `app.screenshot()` sur iOS / visionOS, la fenêtre de l'app sur macOS.
     @MainActor public static func capture(_ app: XCUIApplication, _ name: String,
                                           settle: TimeInterval = 0.5, file: StaticString = #filePath, line: UInt = #line)
 
@@ -32,6 +32,14 @@ public enum PlatformSnapshot {
 
 Un nom d'écran vide fait échouer le test (`XCTFail` à la ligne de l'appel). Nommez l'écran comme un humain
 le nommerait : `"Settings"`, `"Onboarding/Step2"`.
+
+### macOS : la fenêtre de l'app seulement (≥ 1.0.1)
+
+Sur macOS, `app.screenshot()` renvoie **tout l'écran du Mac**, donc l'app au premier plan, qui peut être une
+autre app de l'utilisateur. `capture` n'y recourt jamais : elle active l'app, attend qu'elle soit au premier
+plan (5 s au plus), puis capture **la première fenêtre de l'app** (`app.windows.firstMatch`). Si l'app ne
+passe pas au premier plan ou n'a aucune fenêtre, le test échoue (`XCTFail` à la ligne de l'appel) et aucune
+capture n'est attachée. La version 1.0.0 capturait l'écran entier sur macOS : passez à 1.0.1.
 
 ## Exemple de target `SnapshotTests`
 
@@ -115,6 +123,7 @@ TEST_RUNNER_PLATFORM_APPEARANCE=dark xcodebuild test …   # même chose en somb
 swift build && swift test                                   # macOS (logique pure testée unitairement)
 xcodebuild -scheme PlatformSnapshot -destination 'generic/platform=iOS' build
 xcodebuild -scheme PlatformSnapshot -destination 'generic/platform=visionOS' build
+xcodebuild -scheme PlatformSnapshot -destination 'generic/platform=macOS' build
 swift format lint --strict --recursive Package.swift Sources Tests Fixture
 ```
 
